@@ -1,0 +1,17 @@
+[Unit]
+Description=Inotify Disk Monitor Daemon
+After=syslog.target network.target
+
+[Service]
+Type=forking
+PIDFile=/tmp/disk_monitor.pid
+
+ExecStart=@CMAKE_BINARY_DIR@/src/disk_monitor @CMAKE_SOURCE_DIR@/configs/disk-monitor.conf
+
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/bin/kill -TERM $MAINPID
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
