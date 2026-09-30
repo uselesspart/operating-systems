@@ -1,0 +1,4 @@
+# Всегда LF-окончания строк, даже при клонировании на Windows:
+# иначе build.sh с CRLF не запустится в Linux.
+* text=auto eol=lf
+*.sh text eol=lf
