@@ -14,6 +14,7 @@ lab1/
 ├── disk_monitor.conf             configuration
 ├── rsyslog/
 │   └── 30-disk_monitor.conf      rule rsyslog for LOG_LOCAL0
+├── tests/                        integration tests (run_tests.sh)
 ├── include/                      .h
 │   ├── DiskMonitor.h             singleton class
 │   ├── FileWatcher.h             recursion inotify
@@ -117,3 +118,29 @@ pid-файл: `/var/run/disk_monitor.pid` при запуске от root, `/tmp
 | `MOVED_FROM` / `MOVED_TO` | переименование или перемещение; у пары одинаковый cookie |
 | `DELETE_SELF` / `MOVE_SELF` | удалён или перемещён сам наблюдаемый каталог из конфига |
 
+## Тесты
+
+Интеграционные тесты в `tests/`: запускают настоящий
+демон во временном каталоге `/tmp/dm_test.XXXXXX`, работают с файлами, шлют
+сигналы и сверяют записи в `/var/log/disk_monitor.log` и `/var/log/syslog`.
+
+```sh
+sudo bash tests/run_tests.sh             # сборка и все наборы
+sudo bash tests/run_tests.sh signals     # один набор: tests/test_signals.sh
+```
+
+Нужны rsyslog с правилом из `rsyslog/` и права на чтение `/var/log` (root или
+группа `adm`). Если демон уже запущен, тесты попросят его остановить.
+
+| Файл | Что проверяет |
+|---|---|
+| `test_build.sh` | сборка через `build.sh`, `-Wall -Werror`, удаление промежуточных файлов |
+| `test_daemon.sh` | фоновый процесс без терминала, `setsid` и второй `fork`, рабочий каталог `/`, `/dev/null`, pid-файл |
+| `test_config.sh` | конфиг из рабочего каталога и из аргумента, относительные пути, комментарии, CRLF, повторы |
+| `test_events.sh` | запись, чтение, атрибуты, перемещение, удаление; события только в отдельном журнале |
+| `test_recursive.sh` | подкаталоги: новые, `mkdir -p`, переименование, перемещение наружу и внутрь, без дублей |
+| `test_signals.sh` | SIGHUP (каталог добавлен, убран, конфиг пропал), SIGTERM |
+| `test_pidfile.sh` | повторный запуск, проверка через `/proc`, устаревший, чужой и испорченный pid |
+| `test_load.sh` | 500 файлов подряд без потери событий |
+| `lib.sh` | общие функции: запуск демона, чтение журналов, проверки |
+| `run_tests.sh` | сборка, запуск наборов, итог |
