@@ -1,0 +1,6 @@
+# The daemon is built and run on Linux, so the sources and the build script
+# must keep LF endings whatever the platform the repository is cloned on.
+* text=auto eol=lf
+
+# The build script is a shell script and has to stay executable.
+build.sh text eol=lf
