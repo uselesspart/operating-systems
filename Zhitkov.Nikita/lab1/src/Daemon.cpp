@@ -22,14 +22,14 @@ namespace {
 constexpr const char* kPidFile   = "/tmp/reminder_daemon.pid";
 constexpr const char* kSyslogTag = "reminder_daemon";
 
-// Единственный флаг, который выставляется в обработчике сигнала.
+// Единственный флаг, который выставляется в обработчике сигнала
 volatile sig_atomic_t g_pendingSignal = 0;
 
 extern "C" void onSignal(int sig) {
     g_pendingSignal = sig;
 }
 
-}  // namespace
+}
 
 Daemon& Daemon::instance() {
     static Daemon inst;
@@ -37,7 +37,7 @@ Daemon& Daemon::instance() {
 }
 
 bool Daemon::start(const std::string& configPath) {
-    // 1. Абсолютный путь к конфигу (запоминается на всё время работы).
+    // Абсолютный путь к конфигу (запоминается на всё время работы)
     char resolved[PATH_MAX];
     if (realpath(configPath.c_str(), resolved) == nullptr) {
         std::fprintf(stderr, "Cannot resolve config path: %s\n", configPath.c_str());
@@ -45,23 +45,23 @@ bool Daemon::start(const std::string& configPath) {
     }
     configPath_ = resolved;
 
-    // 2. Проверка pid-файла и "убийство" старого демона.
+    // Проверка pid-файла и убийство старого демона
     pidFilePath_ = kPidFile;
     checkAndKillExisting();
 
-    // 3. Демонизация.
+    // Демонизация
     daemonize();
 
     openlog(kSyslogTag, LOG_PID | LOG_NDELAY, LOG_DAEMON);
     syslog(LOG_INFO, "Daemon started (config=%s)", configPath_.c_str());
 
-    // 4. Запись pid-файла уже от демонизированного процесса.
+    // Запись pid-файла уже от демонизированного процесса
     writePidFile();
 
-    // 5. Обработчики сигналов.
+    // Обработчики сигналов
     setupSignalHandlers();
 
-    // 6. Загрузка конфига.
+    // Загрузка конфига
     try {
         loadConfig();
     } catch (const std::exception& e) {
@@ -70,7 +70,7 @@ bool Daemon::start(const std::string& configPath) {
         return false;
     }
 
-    // 7. Основной цикл.
+    // Основной цикл
     running_.store(true);
     runLoop();
 
@@ -85,7 +85,7 @@ void Daemon::daemonize() {
 
     if (setsid() < 0) throw std::runtime_error("setsid() failed");
 
-    // Второй fork — гарантия, что демон не станет ведущим процесса сессии.
+    // Второй fork - гарантия, что демон не станет ведущим процесса сессии
     pid = fork();
     if (pid < 0) throw std::runtime_error("second fork() failed");
     if (pid > 0) _exit(0);
@@ -93,13 +93,13 @@ void Daemon::daemonize() {
     umask(0);
     if (chdir("/") < 0) throw std::runtime_error("chdir() failed");
 
-    // Закрываем все файловые дескрипторы.
+    // Закрываем все файловые дескрипторы
     const long maxFd = sysconf(_SC_OPEN_MAX);
     for (long fd = maxFd; fd >= 0; --fd) {
         close(static_cast<int>(fd));
     }
 
-    // Перенаправляем stdin/stdout/stderr в /dev/null.
+    // Перенаправляем stdin/stdout/stderr в /dev/null
     const int devNull = open("/dev/null", O_RDWR);
     if (devNull >= 0) {
         dup2(devNull, STDIN_FILENO);
@@ -119,7 +119,7 @@ void Daemon::setupSignalHandlers() {
     sigaction(SIGTERM, &sa, nullptr);
     sigaction(SIGINT,  &sa, nullptr);
 
-    // Дочерние процессы (открытие терминала) не должны превращаться в зомби.
+    // Дочерние процессы (открытие терминала) не должны превращаться в зомби
     struct sigaction saIgn{};
     saIgn.sa_handler = SIG_IGN;
     saIgn.sa_flags   = SA_NOCLDWAIT;
@@ -137,13 +137,13 @@ void Daemon::checkAndKillExisting() {
     const std::string procPath = "/proc/" + std::to_string(pid);
     struct stat st{};
     if (stat(procPath.c_str(), &st) != 0) {
-        return;  // процесс уже не существует — pid-файл устарел
+        return;  // процесс уже не существует - pid-файл устарел
     }
 
     syslog(LOG_WARNING, "Found running daemon (pid=%d), sending SIGTERM", pid);
     kill(pid, SIGTERM);
 
-    // Ждём завершения до 5 секунд.
+    // Ждём завершения до 5 секунд
     for (int i = 0; i < 50; ++i) {
         if (stat(procPath.c_str(), &st) != 0) return;
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -167,7 +167,7 @@ void Daemon::loadConfig() {
     const Config cfg = parseConfig(configPath_);
     intervalSeconds_ = cfg.intervalSeconds;
 
-    // Относительный путь events_file разрешаем относительно каталога конфига.
+    // Относительный путь events_file разрешаем относительно каталога конфига
     if (!cfg.eventsFile.empty() && cfg.eventsFile[0] != '/') {
         const auto slash = configPath_.find_last_of('/');
         const std::string dir = (slash == std::string::npos)
@@ -184,7 +184,7 @@ void Daemon::loadConfig() {
 
 void Daemon::runLoop() {
     while (running_.load()) {
-        // Обработка отложенного сигнала.
+        // Обработка отложенного сигнала
         const int sig = g_pendingSignal;
         g_pendingSignal = 0;
 
@@ -204,7 +204,7 @@ void Daemon::runLoop() {
 
         checkEvents();
 
-        // Спим интервал долями по 1 секунде, чтобы быстро реагировать на сигналы.
+        // Спим интервал долями по 1 секунде, чтобы быстро реагировать на сигналы
         for (int i = 0; i < intervalSeconds_ && running_.load(); ++i) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             if (g_pendingSignal != 0) break;
@@ -256,7 +256,7 @@ void Daemon::openTerminal(const std::string& text) const {
         return;
     }
 
-    // Экранируем опасные символы для передачи внутрь sh.
+    // Экранируем опасные символы для передачи внутрь sh
     std::string esc;
     esc.reserve(text.size());
     for (char c : text) {
@@ -265,7 +265,7 @@ void Daemon::openTerminal(const std::string& text) const {
     }
 
     const std::string shellCmd =
-        std::string("echo '=== REMINDER ==='; echo \"") + esc +
+        std::string("echo 'REMINDER'; echo \"") + esc +
         "\"; sleep 60";
 
     const pid_t pid = fork();
@@ -275,26 +275,25 @@ void Daemon::openTerminal(const std::string& text) const {
     }
 
     if (pid == 0) {
-        // 1. Всё, что через GNOME-сервер — оборачиваем в systemd-run,
-        //    чтобы получить правильный контекст сессии.
+        // Всё, что через GNOME-сервер - оборачиваем в systemd-run, чтобы получить правильный контекст сессии
         execlp("systemd-run", "systemd-run",
                 "--user", "--collect",
                 "gnome-terminal", "--",
                 "/bin/sh", "-c", shellCmd.c_str(), nullptr);
 
-        // 2. Konsole с флагом --separate — работает без D-Bus.
+        // Konsole с флагом --separate - работает без D-Bus
         execlp("konsole", "konsole", "--separate",
                 "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
 
-        // 3. XFCE-терминал с флагом --disable-server.
+        // XFCE-терминал с флагом --disable-server
         execlp("xfce4-terminal", "xfce4-terminal", "--disable-server",
                 "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
 
-        // 4. MATE — та же беда, что у GNOME, пусть попробует.
+        // MATE - та же беда, что у GNOME, пусть попробует
         execlp("mate-terminal", "mate-terminal",
                 "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
 
-        // 5. Одиночные терминалы — работают без всякой магии.
+        // Одиночные терминалы - работают без всякой магии
         execlp("xterm", "xterm",
                 "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
         execlp("alacritty", "alacritty",
@@ -302,7 +301,7 @@ void Daemon::openTerminal(const std::string& text) const {
         execlp("kitty", "kitty",
                 "/bin/sh", "-c", shellCmd.c_str(), nullptr);
 
-        // 6. Универсальный fallback — если терминала нет совсем.
+        // Универсальный fallback - если терминала нет совсем
         execlp("zenity", "zenity",
                 "--info", "--title=Reminder", "--text", text.c_str(), nullptr);
 
@@ -311,7 +310,7 @@ void Daemon::openTerminal(const std::string& text) const {
 }
 
 void Daemon::cleanup() {
-    // Удаляем pid-файл только если он наш (иначе не трогаем файл нового демона).
+    // Удаляем pid-файл только если он наш (иначе не трогаем файл нового демона)
     std::ifstream in(pidFilePath_);
     pid_t stored = 0;
     if ((in >> stored) && stored == getpid()) {

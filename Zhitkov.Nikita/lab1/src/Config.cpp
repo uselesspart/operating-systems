@@ -15,7 +15,7 @@ std::string trim(const std::string& s) {
     return s.substr(b, e - b);
 }
 
-}  // namespace
+}
 
 Config parseConfig(const std::string& path) {
     std::ifstream in(path);

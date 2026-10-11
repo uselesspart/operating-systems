@@ -7,5 +7,5 @@ struct Config {
     std::string eventsFile;
 };
 
-// Бросает std::runtime_error при ошибке.
+// Бросает std::runtime_error при ошибке
 Config parseConfig(const std::string& path);

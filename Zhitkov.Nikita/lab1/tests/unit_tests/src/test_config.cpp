@@ -16,8 +16,8 @@ void writeFile(const std::string& content) {
     out << content;
 }
 
-// Все ошибки парсера выражаются через std::runtime_error.
-// Хелпер убирает дублирование try/catch по тестам.
+// Все ошибки парсера выражаются через std::runtime_error
+// Хелпер убирает дублирование try/catch по тестам
 bool throwsOnParse(const std::string& content) {
     writeFile(content);
     try {
@@ -28,7 +28,7 @@ bool throwsOnParse(const std::string& content) {
     return false;
 }
 
-}  // namespace
+}
 
 void testValidConfig() {
     writeFile(

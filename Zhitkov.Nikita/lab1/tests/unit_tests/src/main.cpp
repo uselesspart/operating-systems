@@ -23,6 +23,5 @@ int main() {
     testGraceVariants();
     std::cout << "test_events: PASSED\n";
 
-    std::cout << "ALL UNIT TESTS PASSED\n";
     return 0;
 }

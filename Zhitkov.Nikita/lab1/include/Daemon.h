@@ -13,7 +13,7 @@ class Daemon {
 public:
     static Daemon& instance();
 
-    // Возвращает true при нормальном завершении, false при фатальной ошибке.
+    // Возвращает true при нормальном завершении, false при фатальной ошибке
     bool start(const std::string& configPath);
 
     Daemon(const Daemon&)            = delete;
@@ -23,7 +23,7 @@ private:
     Daemon() = default;
     ~Daemon() = default;
 
-    // Уникальный ключ события для сохранения состояния между перезагрузками.
+    // Уникальный ключ события для сохранения состояния между перезагрузками
     using EventKey = std::tuple<std::time_t, std::string>;
 
     void daemonize();
@@ -42,7 +42,7 @@ private:
     int         intervalSeconds_ = 10;
     std::string eventsFilePath_;
 
-    // lastFired по событиям: сохраняется между итерациями и перезагрузками.
+    // lastFired по событиям: сохраняется между итерациями и перезагрузками
     std::map<EventKey, std::time_t> fired_;
 
     std::atomic<bool> running_{false};

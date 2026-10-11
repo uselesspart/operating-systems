@@ -22,7 +22,7 @@ void ltrim(std::string& s) {
     s.erase(0, i);
 }
 
-}  // namespace
+}
 
 bool parseEventLine(const std::string& line, Event& out) {
     if (line.size() < 19) return false;
@@ -76,10 +76,10 @@ EventAction decideEventAction(const Event& ev,
                               std::time_t lastFired,
                               std::time_t now,
                               std::time_t grace) {
-    // Одноразовое событие уже отстрелялось — больше не трогаем.
+    // Одноразовое событие уже отстрелялось - больше не трогаем
     if (ev.flag == 0 && lastFired != 0) return EventAction::Skip;
 
-    // Момент, когда событие должно было сработать в этот раз.
+    // Момент, когда событие должно было сработать в этот раз
     const std::time_t due =
         (lastFired == 0) ? ev.time : lastFired + ev.repeatSeconds();
 

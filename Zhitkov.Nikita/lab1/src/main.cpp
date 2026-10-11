@@ -5,7 +5,7 @@
 #include "Daemon.h"
 
 int main(int argc, char* argv[]) {
-    std::string configPath = "config.ini";
+    std::string configPath = "reminder.conf";
     if (argc > 1) configPath = argv[1];
 
     try {

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Добавляет новое событие в файл событий.
+# Добавляет новое событие в файл событий
 # Использование: ./add_event.sh <YYYY-MM-DD> <HH:MM:SS> [-h|-d|-w] <text>
 set -e
 
@@ -23,7 +23,7 @@ esac
 
 TEXT="$*"
 
-CONFIG="${REMINDER_CONFIG:-./config.ini}"
+CONFIG="${REMINDER_CONFIG:-./reminder.conf}"
 if [ ! -f "$CONFIG" ]; then
     echo "Config file not found: $CONFIG" >&2
     exit 1
@@ -37,7 +37,7 @@ if [ -z "$EVENTS_FILE" ]; then
     exit 1
 fi
 
-# Относительный путь трактуем относительно каталога с конфигом.
+# Относительный путь трактуем относительно каталога с конфигом
 case "$EVENTS_FILE" in
     /*) ;;
     *) EVENTS_FILE="$(dirname "$CONFIG")/$EVENTS_FILE" ;;
@@ -54,10 +54,10 @@ fi
 echo "Event added to $EVENTS_FILE:"
 echo "  $DATE $TIME $FLAG $TEXT"
 
-# Сообщаем работающему демону, что надо перечитать конфиг.
+# Сообщаем работающему демону, что надо перечитать конфиг
 if [ -f /tmp/reminder_daemon.pid ]; then
     PID="$(cat /tmp/reminder_daemon.pid 2>/dev/null || true)"
     if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-        kill -HUP "$PID" && echo "Daemon notified (SIGHUP)"
+        kill -SIGHUP "$PID" && echo "Daemon notified (SIGHUP)"
     fi
 fi

@@ -13,16 +13,16 @@ struct Event {
     std::time_t repeatSeconds() const;
 };
 
-// Разбирает одну строку файла событий. Возвращает false, если строка некорректна.
+// Разбирает одну строку файла событий. Возвращает false, если строка некорректна
 bool parseEventLine(const std::string& line, Event& out);
 
-// Читает все события из файла. Отсутствующий файл трактуется как пустой список.
+// Читает все события из файла. Отсутствующий файл трактуется как пустой список
 std::vector<Event> parseEventsFile(const std::string& path);
 
 enum class EventAction {
-    Skip,      // ещё рано (или одноразовое уже отстреляно) — ничего не делать
+    Skip,      // ещё рано (или одноразовое уже отстреляно) - ничего не делать
     Fire,      // сработать
-    MarkStale  // опоздало сильнее grace — тихо пометить как отработанное
+    MarkStale  // опоздало сильнее grace - тихо пометить как отработанное
 };
 
 EventAction decideEventAction(const Event& ev,

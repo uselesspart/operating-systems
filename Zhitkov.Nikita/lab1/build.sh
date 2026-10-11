@@ -20,7 +20,7 @@ $CXX "$BUILD_DIR/Config.o" "$BUILD_DIR/Event.o" \
      "$BUILD_DIR/Daemon.o" "$BUILD_DIR/main.o" \
      -o "$BIN"
 
-# Чистим промежуточные файлы.
+# Чистим промежуточные файлы
 rm -rf "$BUILD_DIR"
 
 echo "Built: $BIN"
