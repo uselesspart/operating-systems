@@ -265,7 +265,7 @@ void Daemon::openTerminal(const std::string& text) const {
     }
 
     const std::string shellCmd =
-        std::string("echo 'REMINDER'; echo \"") + esc +
+        std::string("echo 'НАПОМИНАЛКА'; echo \"") + esc +
         "\"; sleep 60";
 
     const pid_t pid = fork();
