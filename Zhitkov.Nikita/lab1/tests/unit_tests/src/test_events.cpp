@@ -113,9 +113,9 @@ void testHourlyEvent() {
     assert(decideEventAction(hourly, base, base + hour + grace + 1, grace)
            == EventAction::MarkStale);
 
-    // Демон проспал два часа - тоже MarkStale
+    // Демон вернулся ровно на 2h-границу - событие срабатывает по расписанию
     assert(decideEventAction(hourly, base, base + 2 * hour, grace)
-           == EventAction::MarkStale);
+           == EventAction::Fire);
 }
 
 void testDailyEvent() {
@@ -148,6 +148,25 @@ void testWeeklyEvent() {
            == EventAction::Fire);
     assert(decideEventAction(weekly, base, base + week + grace + 1, grace)
            == EventAction::MarkStale);
+}
+
+void testRecurringScheduleAlignment() {
+    const std::time_t base  = 1'000'000;
+    const std::time_t grace = 10;
+    const std::time_t hour  = 3600;
+
+    const Event hourly = makeEvent(base, 'h', "hourly");
+
+    // Демон спал 3 часа 15 секунд. Ожидаем: due продвинулся к base+3h (граница), опоздание 15 > grace -> MarkStale, fired=base+3h
+    std::time_t due = 0;
+    assert(decideEventAction(hourly, base, base + 3 * hour + 15, grace, &due)
+           == EventAction::MarkStale);
+    assert(due == base + 3 * hour);
+
+    // То же, но 5 секунд опоздания - в пределах grace -> Fire
+    assert(decideEventAction(hourly, base, base + 3 * hour + 5, grace, &due)
+           == EventAction::Fire);
+    assert(due == base + 3 * hour);
 }
 
 void testGraceVariants() {

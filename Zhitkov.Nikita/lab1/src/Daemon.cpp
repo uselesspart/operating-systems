@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cerrno>
 #include <fstream>
 #include <stdexcept>
 #include <thread>
@@ -22,11 +23,29 @@ namespace {
 constexpr const char* kPidFile   = "/tmp/reminder_daemon.pid";
 constexpr const char* kSyslogTag = "reminder_daemon";
 
-// Единственный флаг, который выставляется в обработчике сигнала
-volatile sig_atomic_t g_pendingSignal = 0;
+volatile sig_atomic_t g_terminateFlag = 0;
+volatile sig_atomic_t g_terminateSig  = 0;
+volatile sig_atomic_t g_reloadFlag    = 0;
 
 extern "C" void onSignal(int sig) {
-    g_pendingSignal = sig;
+    if (sig == SIGTERM || sig == SIGINT) {
+        g_terminateSig  = sig;
+        g_terminateFlag = 1;
+    } else if (sig == SIGHUP) {
+        g_reloadFlag = 1;
+    }
+}
+
+bool isReminderDaemon(pid_t pid) {
+    // /proc/<pid>/comm - имя процесса из ядра (task_struct->comm)
+    // Буфер фиксированного размера TASK_COMM_LEN = 16 байт, из них под имя доступно 15 символов (последний байт - '\0')
+    // Через argv[0] не подделать, в отличие от /proc/<pid>/cmdline
+    const std::string commPath = "/proc/" + std::to_string(pid) + "/comm";
+    std::ifstream comm(commPath);
+    if (!comm) return false;
+    std::string name;
+    std::getline(comm, name);
+    return name == "reminder_daemon";
 }
 
 }
@@ -128,39 +147,58 @@ void Daemon::setupSignalHandlers() {
 }
 
 void Daemon::checkAndKillExisting() {
-    std::ifstream in(pidFilePath_);
-    if (!in) return;
+    // Проверяем сам pid-файл: обычный файл, наш по владельцу, не writable для группы/остальных
+    struct stat fst{};
+    if (stat(pidFilePath_.c_str(), &fst) != 0) return;   // файла нет
+    if (!S_ISREG(fst.st_mode)) {
+        syslog(LOG_WARNING, "Pid file %s is not a regular file, ignoring",
+               pidFilePath_.c_str());
+        return;
+    }
+    if (fst.st_uid != getuid()) {
+        syslog(LOG_WARNING, "Pid file %s owned by uid %d, not us, ignoring",
+               pidFilePath_.c_str(), (int)fst.st_uid);
+        return;
+    }
 
+    std::ifstream in(pidFilePath_);
     pid_t pid = 0;
-    if (!(in >> pid) || pid <= 0) return;
+    if (!(in >> pid) || pid <= 0 || pid == getpid()) return;
+
+    // Проверяем, что это действительно наш демон, а не чужой процесс
+    if (!isReminderDaemon(pid)) {
+        syslog(LOG_WARNING, "Pid %d from %s is not reminder_daemon, ignoring",
+               (int)pid, pidFilePath_.c_str());
+        return;
+    }
+
+    syslog(LOG_WARNING, "Found running daemon (pid=%d), sending SIGTERM", (int)pid);
+    kill(pid, SIGTERM);
 
     const std::string procPath = "/proc/" + std::to_string(pid);
     struct stat st{};
-    if (stat(procPath.c_str(), &st) != 0) {
-        return;  // процесс уже не существует - pid-файл устарел
-    }
-
-    syslog(LOG_WARNING, "Found running daemon (pid=%d), sending SIGTERM", pid);
-    kill(pid, SIGTERM);
-
-    // Ждём завершения до 5 секунд
     for (int i = 0; i < 50; ++i) {
         if (stat(procPath.c_str(), &st) != 0) return;
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    syslog(LOG_WARNING, "Old daemon (pid=%d) did not exit, SIGKILL", pid);
+    syslog(LOG_WARNING, "Old daemon (pid=%d) did not exit, SIGKILL", (int)pid);
     kill(pid, SIGKILL);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 }
 
 void Daemon::writePidFile() {
-    std::ofstream out(pidFilePath_, std::ios::trunc);
-    if (!out) {
-        syslog(LOG_ERR, "Cannot write pid file: %s", pidFilePath_.c_str());
+    int fd = open(pidFilePath_.c_str(),
+                  O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0644);
+    if (fd < 0) {
+        syslog(LOG_ERR, "Cannot write pid file %s: %s",
+               pidFilePath_.c_str(), std::strerror(errno));
         return;
     }
-    out << getpid() << '\n';
+    // Принудительно 0644, даже если файл уже существовал с более слабыми правами
+    fchmod(fd, 0644);
+    dprintf(fd, "%d\n", (int)getpid());
+    close(fd);
 }
 
 void Daemon::loadConfig() {
@@ -184,16 +222,15 @@ void Daemon::loadConfig() {
 
 void Daemon::runLoop() {
     while (running_.load()) {
-        // Обработка отложенного сигнала
-        const int sig = g_pendingSignal;
-        g_pendingSignal = 0;
-
-        if (sig == SIGTERM || sig == SIGINT) {
-            syslog(LOG_INFO, "Received signal %d, shutting down", sig);
+        // Терминация - наивысший приоритет, никогда не теряется
+        if (g_terminateFlag) {
+            syslog(LOG_INFO, "Received signal %d, shutting down",
+                   (int)g_terminateSig);
             running_.store(false);
             break;
         }
-        if (sig == SIGHUP) {
+        if (g_reloadFlag) {
+            g_reloadFlag = 0;
             syslog(LOG_INFO, "SIGHUP received, reloading config");
             try {
                 loadConfig();
@@ -207,7 +244,7 @@ void Daemon::runLoop() {
         // Спим интервал долями по 1 секунде, чтобы быстро реагировать на сигналы
         for (int i = 0; i < intervalSeconds_ && running_.load(); ++i) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
-            if (g_pendingSignal != 0) break;
+            if (g_terminateFlag || g_reloadFlag) break;
         }
     }
 }
@@ -223,20 +260,22 @@ void Daemon::checkEvents() {
         const auto it = fired_.find(key);
         if (it != fired_.end()) last = it->second;
 
-        switch (decideEventAction(ev, last, now, grace)) {
+        std::time_t due = 0;
+        switch (decideEventAction(ev, last, now, grace, &due)) {
             case EventAction::Skip:
                 break;
 
             case EventAction::MarkStale:
                 syslog(LOG_INFO,
                        "Skipping stale event (missed by %ld sec): %s",
-                       static_cast<long>(now - ev.time), ev.text.c_str());
-                fired_[key] = now;
+                       static_cast<long>(now - due), ev.text.c_str());
+                // Привязка к расписанию, а не к текущему моменту
+                fired_[key] = due;
                 break;
 
             case EventAction::Fire:
                 fireEvent(ev);
-                fired_[key] = now;
+                fired_[key] = due;
                 break;
         }
     }
@@ -251,12 +290,11 @@ void Daemon::openTerminal(const std::string& text) const {
     const char* display = std::getenv("DISPLAY");
     if (display == nullptr || *display == '\0') {
         syslog(LOG_WARNING,
-               "DISPLAY is not set; cannot open terminal. Message: %s",
+               "DISPLAY не задан; нельзя открыть терминал. Сообщение: %s",
                text.c_str());
         return;
     }
 
-    // Экранируем опасные символы для передачи внутрь sh
     std::string esc;
     esc.reserve(text.size());
     for (char c : text) {
@@ -264,47 +302,32 @@ void Daemon::openTerminal(const std::string& text) const {
         esc += c;
     }
 
-    const std::string shellCmd =
-        std::string("echo 'НАПОМИНАЛКА'; echo \"") + esc +
-        "\"; sleep 60";
+    const std::string innerCmd =
+        std::string("echo 'Напоминалка'; echo; echo \"") + esc +
+        "\"; stty -echo; exec sleep infinity";
+
+    // Каждый кандидат запускается через "sh -c" и передаёт код возврата
+    // При ненулевом exit-коде || переходит к следующему
+    // systemd-run без --wait падает сразу, если нет user bus
+    const std::string script =
+        "systemd-run --user --collect --quiet gnome-terminal -- "
+            "/bin/sh -c \"$1\" 2>/dev/null || "
+        "gnome-terminal -- /bin/sh -c \"$1\" 2>/dev/null || "
+        "konsole -e /bin/sh -c \"$1\" 2>/dev/null || "
+        "xfce4-terminal -e /bin/sh -c \"$1\" 2>/dev/null || "
+        "mate-terminal -e /bin/sh -c \"$1\" 2>/dev/null || "
+        "xterm -e /bin/sh -c \"$1\" 2>/dev/null || "
+        "zenity --info --text \"$2\" 2>/dev/null";
 
     const pid_t pid = fork();
     if (pid < 0) {
         syslog(LOG_ERR, "fork() failed while opening terminal");
         return;
     }
-
     if (pid == 0) {
-        // Всё, что через GNOME-сервер - оборачиваем в systemd-run, чтобы получить правильный контекст сессии
-        execlp("systemd-run", "systemd-run",
-                "--user", "--collect",
-                "gnome-terminal", "--",
-                "/bin/sh", "-c", shellCmd.c_str(), nullptr);
-
-        // Konsole с флагом --separate - работает без D-Bus
-        execlp("konsole", "konsole", "--separate",
-                "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
-
-        // XFCE-терминал с флагом --disable-server
-        execlp("xfce4-terminal", "xfce4-terminal", "--disable-server",
-                "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
-
-        // MATE - та же беда, что у GNOME, пусть попробует
-        execlp("mate-terminal", "mate-terminal",
-                "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
-
-        // Одиночные терминалы - работают без всякой магии
-        execlp("xterm", "xterm",
-                "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
-        execlp("alacritty", "alacritty",
-                "-e", "/bin/sh", "-c", shellCmd.c_str(), nullptr);
-        execlp("kitty", "kitty",
-                "/bin/sh", "-c", shellCmd.c_str(), nullptr);
-
-        // Универсальный fallback - если терминала нет совсем
-        execlp("zenity", "zenity",
-                "--info", "--title=Reminder", "--text", text.c_str(), nullptr);
-
+        // $1 = innerCmd (что выполнить в терминале), $2 = text (для zenity)
+        execlp("sh", "sh", "-c", script.c_str(), "sh",
+               innerCmd.c_str(), text.c_str(), nullptr);
         _exit(1);
     }
 }

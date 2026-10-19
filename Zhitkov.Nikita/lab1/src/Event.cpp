@@ -75,13 +75,25 @@ std::vector<Event> parseEventsFile(const std::string& path) {
 EventAction decideEventAction(const Event& ev,
                               std::time_t lastFired,
                               std::time_t now,
-                              std::time_t grace) {
-    // Одноразовое событие уже отстрелялось - больше не трогаем
-    if (ev.flag == 0 && lastFired != 0) return EventAction::Skip;
+                              std::time_t grace,
+                              std::time_t* outDue) {
+    if (ev.flag == 0 && lastFired != 0) {
+        if (outDue) *outDue = 0;
+        return EventAction::Skip;
+    }
 
-    // Момент, когда событие должно было сработать в этот раз
-    const std::time_t due =
-        (lastFired == 0) ? ev.time : lastFired + ev.repeatSeconds();
+    std::time_t due = (lastFired == 0) ? ev.time : lastFired + ev.repeatSeconds();
+    const std::time_t r = ev.repeatSeconds();
+
+    // Для повторяющихся: если мы уже за пределами grace, продвигаем due
+    // на целое число периодов вперёд, потому что расписание повторяющегося события - это дискретный набор точек
+    if (r > 0 && now > due + grace) {
+        const std::time_t missed = now - due;
+        const std::time_t periods = missed / r;
+        if (periods > 0) due += periods * r;
+    }
+
+    if (outDue) *outDue = due;
 
     if (now < due) return EventAction::Skip;
     if (now - due > grace) return EventAction::MarkStale;

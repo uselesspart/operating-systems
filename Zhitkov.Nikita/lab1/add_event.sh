@@ -57,7 +57,10 @@ echo "  $DATE $TIME $FLAG $TEXT"
 # Сообщаем работающему демону, что надо перечитать конфиг
 if [ -f /tmp/reminder_daemon.pid ]; then
     PID="$(cat /tmp/reminder_daemon.pid 2>/dev/null || true)"
-    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-        kill -SIGHUP "$PID" && echo "Daemon notified (SIGHUP)"
+    if [ -n "$PID" ] && [ -f "/proc/$PID/comm" ]; then
+        COMM="$(cat "/proc/$PID/comm" 2>/dev/null || true)"
+        if [ "$COMM" = "reminder_daemon" ]; then
+            kill -HUP "$PID" 2>/dev/null && echo "Daemon notified (SIGHUP)"
+        fi
     fi
 fi

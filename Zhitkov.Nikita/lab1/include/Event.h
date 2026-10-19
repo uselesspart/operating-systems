@@ -25,7 +25,10 @@ enum class EventAction {
     MarkStale  // опоздало сильнее grace - тихо пометить как отработанное
 };
 
+// outDue (опционально) - сюда возвращается due, к которому нужно привязать
+// fired_, чтобы сохранить расписание
 EventAction decideEventAction(const Event& ev,
                               std::time_t lastFired,
                               std::time_t now,
-                              std::time_t grace);
+                              std::time_t grace,
+                              std::time_t* outDue = nullptr);

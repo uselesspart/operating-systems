@@ -3,11 +3,20 @@
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+TEST_NAME="$(basename "${BASH_SOURCE[1]}" .sh)"
 DAEMON="$ROOT/reminder_daemon"
 PIDFILE="/tmp/reminder_daemon.pid"
 
-pass() { echo "PASS: $*"; }
-fail() { echo "FAIL: $*"; exit 1; }
+pass() {
+    echo "[$TEST_NAME] PASS: $*"
+}
+
+fail() {
+    echo "[$TEST_NAME] FAIL: $*" >&2
+    # Показать, откуда именно был вызван fail() - файл:строка
+    echo "  at $(basename "${BASH_SOURCE[1]}"):${BASH_LINENO[0]}" >&2
+    exit 1
+}
 
 make_test_dir() {
     local dir

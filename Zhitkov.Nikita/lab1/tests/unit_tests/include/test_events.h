@@ -9,4 +9,5 @@ void testOneTimeEvent();
 void testHourlyEvent();
 void testDailyEvent();
 void testWeeklyEvent();
+void testRecurringScheduleAlignment();
 void testGraceVariants();
