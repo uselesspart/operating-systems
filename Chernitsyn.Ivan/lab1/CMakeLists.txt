@@ -14,3 +14,16 @@ add_library(reminder STATIC
     src/event.cpp
 )
 target_include_directories(reminder PUBLIC include)
+
+option(BUILD_TESTS "Build criterion tests" OFF)
+
+if(BUILD_TESTS)
+    include(cmake/criterion.cmake)
+    enable_testing()
+
+    foreach(name event)
+        add_executable(test_${name} tests/test_${name}.cpp)
+        target_link_libraries(test_${name} PRIVATE reminder criterion)
+        add_test(NAME ${name} COMMAND test_${name})
+    endforeach()
+endif()
