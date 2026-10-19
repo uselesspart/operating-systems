@@ -1,0 +1,5 @@
+daemon_lab1
+*.o
+*.log
+build/
+.vscode/

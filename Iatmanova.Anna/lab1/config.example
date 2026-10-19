@@ -1,0 +1,7 @@
+# Интервал между проверками (секунды)
+interval 20
+
+# Формат правила: folder ignfile
+# Относительные пути считаются относительно каталога, где лежит config-файл.
+demo/folder_a dont.erase
+demo/folder_b keep.me
