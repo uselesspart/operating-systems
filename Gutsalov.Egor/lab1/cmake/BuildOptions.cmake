@@ -1,0 +1,56 @@
+include_guard(GLOBAL)
+
+# RELEASE is the public bool switch. Honor an existing Release build type when
+# configuring an old build tree that does not yet have this switch in its cache.
+set(release_default OFF)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(release_default ON)
+endif()
+option(RELEASE "Build with Release optimizations (OFF selects Debug)" ${release_default})
+option(ENABLE_TESTING "Build and enable lab tests" ON)
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+
+if(RELEASE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type selected by RELEASE" FORCE)
+else()
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type selected by RELEASE" FORCE)
+endif()
+
+if(ENABLE_ASAN AND ENABLE_TSAN)
+  message(FATAL_ERROR "ENABLE_ASAN and ENABLE_TSAN are mutually exclusive; use separate build directories")
+endif()
+if(CMAKE_CONFIGURATION_TYPES)
+  message(FATAL_ERROR "Use a single-configuration generator, such as Unix Makefiles or Ninja")
+endif()
+
+add_library(lab1_build_options INTERFACE)
+target_compile_features(lab1_build_options INTERFACE cxx_std_20)
+target_compile_options(lab1_build_options INTERFACE -Wall -Wextra -Werror)
+
+set(LAB1_SANITIZER none)
+if(ENABLE_ASAN OR ENABLE_TSAN)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang)$")
+    message(FATAL_ERROR "Sanitizer builds require GCC or Clang")
+  endif()
+  if(ENABLE_ASAN)
+    set(LAB1_SANITIZER address)
+  else()
+    set(LAB1_SANITIZER thread)
+  endif()
+
+  include(CheckCXXCompilerFlag)
+  include(CMakePushCheckState)
+  cmake_push_check_state(RESET)
+  set(CMAKE_REQUIRED_LINK_OPTIONS "-fsanitize=${LAB1_SANITIZER}")
+  check_cxx_compiler_flag("-fsanitize=${LAB1_SANITIZER}" "LAB1_HAS_${LAB1_SANITIZER}_SANITIZER")
+  cmake_pop_check_state()
+  if(NOT LAB1_HAS_${LAB1_SANITIZER}_SANITIZER)
+    message(FATAL_ERROR "The compiler cannot compile/link -fsanitize=${LAB1_SANITIZER}; install its sanitizer runtime")
+  endif()
+
+  target_compile_options(lab1_build_options INTERFACE
+    "-fsanitize=${LAB1_SANITIZER}" -g -fno-omit-frame-pointer)
+  target_link_options(lab1_build_options INTERFACE "-fsanitize=${LAB1_SANITIZER}")
+endif()
+message(STATUS "lab1: RELEASE=${RELEASE}, ENABLE_TESTING=${ENABLE_TESTING}, sanitizer=${LAB1_SANITIZER}")

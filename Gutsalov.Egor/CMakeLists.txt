@@ -1,15 +1,8 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.20)
+project(operating_systems LANGUAGES CXX)
 
-project(lab1 LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-option(ENABLE_TESTING "Enable testing" ON)
-
-add_subdirectory(src)
-
-# if(ENABLE_TESTING)
-#     add_subdirectory(tests)
-#     enable_testing()
-# endif()
+include(lab1/cmake/BuildOptions.cmake)
+if(ENABLE_TESTING)
+  enable_testing()
+endif()
+add_subdirectory(lab1)
