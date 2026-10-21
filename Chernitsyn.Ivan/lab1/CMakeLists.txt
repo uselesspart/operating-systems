@@ -13,6 +13,7 @@ add_compile_options(-Wall -Werror)
 add_library(reminder STATIC
     src/event.cpp
     src/config.cpp
+    src/pidfile.cpp
 )
 target_include_directories(reminder PUBLIC include)
 
@@ -22,7 +23,7 @@ if(BUILD_TESTS)
     include(cmake/criterion.cmake)
     enable_testing()
 
-    foreach(name event config)
+    foreach(name event config pidfile)
         add_executable(test_${name} tests/test_${name}.cpp)
         target_link_libraries(test_${name} PRIVATE reminder criterion)
         add_test(NAME ${name} COMMAND test_${name})
