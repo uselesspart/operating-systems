@@ -17,6 +17,9 @@ add_library(reminder STATIC
 )
 target_include_directories(reminder PUBLIC include)
 
+add_executable(reminderd src/main.cpp src/daemon.cpp)
+target_link_libraries(reminderd PRIVATE reminder)
+
 option(BUILD_TESTS "Build criterion tests" OFF)
 
 if(BUILD_TESTS)
