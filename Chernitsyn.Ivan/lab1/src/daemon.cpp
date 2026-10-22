@@ -9,6 +9,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "notify.h"
 #include "pidfile.h"
 
 volatile sig_atomic_t Daemon::need_reload = 0;
@@ -107,6 +108,8 @@ void Daemon::check_events()
         if (!event_due(&cfg.events[i], last_check, now, &at))
             continue;
         syslog(LOG_INFO, "reminder: %s", cfg.events[i].text);
+        if (notify_show(cfg.terminal, &cfg.events[i], at) < 0)
+            syslog(LOG_ERR, "fork failed: %s", strerror(errno));
     }
 
     last_check = now;
