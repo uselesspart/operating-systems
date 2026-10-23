@@ -65,6 +65,22 @@ printf '%s' "1700000000 none Без перевода строки" > "$NO_NEWLIN
 REMINDER_CONFIG="$NO_NEWLINE" "${ADD_EVENT[@]}" 2035-05-12 10:00 "Добавлено" >/dev/null || fail "не удалось дописать в файл без перевода строки"
 [ "$(wc -l < "$NO_NEWLINE")" -eq 2 ] || fail "строка склеилась с предыдущей"
 
+if command -v flock >/dev/null 2>&1; then
+    LOCK="$REMINDER_CONFIG.lock"
+    exec 9>"$LOCK"
+    flock 9
+    (bash "$SCRIPT_DIR/add_event.sh" 2035-05-13 10:00 "Под блокировкой" >/dev/null 2>&1) &
+    WAITER=$!
+    sleep 0.3
+    if tail -n 1 "$REMINDER_CONFIG" | grep -qF "Под блокировкой"; then
+        fail "add_event не ждал освобождения блокировки"
+    fi
+    flock -u 9
+    exec 9>&-
+    wait "$WAITER" || fail "add_event не завершился после снятия блокировки"
+    tail -n 1 "$REMINDER_CONFIG" | grep -qF "Под блокировкой" || fail "add_event не добавил событие после блокировки"
+fi
+
 if [ "$FAILED" -ne 0 ]; then
     exit 1
 fi

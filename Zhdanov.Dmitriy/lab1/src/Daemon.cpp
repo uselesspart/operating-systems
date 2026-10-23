@@ -9,6 +9,7 @@
 #include <ctime>
 #include <fcntl.h>
 #include <iostream>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -129,6 +130,8 @@ int Daemon::run(const std::string& configPath) {
            configPath.c_str());
 
     std::vector<Event> events;
+    const std::string lockPath = configPath + ".lock";
+    bool lockWarned = false;
 
     while (!g_stop) {
         reapChildren();
@@ -136,6 +139,16 @@ int Daemon::run(const std::string& configPath) {
         if (g_reload) {
             g_reload = 0;
             syslog(LOG_INFO, "получен SIGHUP, перечитываю конфигурацию");
+        }
+
+        int lockFd = open(lockPath.c_str(), O_CREAT | O_RDWR, 0600);
+        if (lockFd >= 0 && flock(lockFd, LOCK_EX) != 0) {
+            close(lockFd);
+            lockFd = -1;
+        }
+        if (lockFd < 0 && !lockWarned) {
+            syslog(LOG_WARNING, "не удалось заблокировать %s", lockPath.c_str());
+            lockWarned = true;
         }
 
         std::vector<Event> loaded;
@@ -150,12 +163,15 @@ int Daemon::run(const std::string& configPath) {
                     continue;
                 }
 
-                if (openTerminal(events[index].text)) {
-                    syslog(LOG_INFO, "напоминание: %s", events[index].text.c_str());
-                } else {
-                    syslog(LOG_ERR, "не удалось открыть терминал для напоминания: %s",
-                           events[index].text.c_str());
+                std::string terminalError;
+                if (!openTerminal(events[index].text, terminalError)) {
+                    syslog(LOG_ERR, "не удалось открыть терминал для напоминания: %s (%s)",
+                           events[index].text.c_str(), terminalError.c_str());
+                    ++index;
+                    continue;
                 }
+
+                syslog(LOG_INFO, "напоминание: %s", events[index].text.c_str());
 
                 if (events[index].repeat == Repeat::None) {
                     events.erase(events.begin() + static_cast<std::ptrdiff_t>(index));
@@ -171,6 +187,11 @@ int Daemon::run(const std::string& configPath) {
             }
         } else {
             syslog(LOG_ERR, "%s", error.c_str());
+        }
+
+        if (lockFd >= 0) {
+            flock(lockFd, LOCK_UN);
+            close(lockFd);
         }
 
         sleep(kCheckInterval);

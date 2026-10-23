@@ -77,11 +77,19 @@ case "$CONFIG" in
     *) CONFIG="$PWD/$CONFIG" ;;
 esac
 
+command -v flock >/dev/null 2>&1 || die "не найден flock (util-linux)"
+LOCK="$CONFIG.lock"
+exec 9>"$LOCK" || die "не удалось открыть $LOCK"
+flock 9 || die "не удалось заблокировать $LOCK"
+
 if [ -s "$CONFIG" ] && [ "$(tail -c 1 "$CONFIG" | od -An -t x1 | tr -d ' \n')" != "0a" ]; then
     printf '\n' >> "$CONFIG" || die "не удалось дописать в $CONFIG"
 fi
 
 printf '%s %s %s\n' "$TIMESTAMP" "$FLAG" "$TEXT" >> "$CONFIG" || die "не удалось дописать в $CONFIG"
+
+flock -u 9
+exec 9>&-
 echo "Добавлено событие: $TIMESTAMP $FLAG $TEXT"
 
 if [ -n "${XDG_RUNTIME_DIR:-}" ]; then

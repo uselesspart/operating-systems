@@ -13,12 +13,12 @@
 Нужны Linux, компилятор с поддержкой C++17 и CMake не ниже 3.16.
 
 ```sh
-cmake -B build
-cmake --build build
+./build.sh
 ```
 
-То же самое делает `./build.sh`. В результате собирается `build/reminder_daemon`.
-Если права на запуск скриптов потерялись при копировании, их нужно вернуть:
+Скрипт собирает проект во временном каталоге, удаляет промежуточные файлы и
+оставляет только готовый `./reminder_daemon`. Если права на запуск скриптов
+потерялись при копировании, их нужно вернуть:
 
 ```sh
 chmod +x add_event.sh stop.sh build.sh tests/run_tests.sh
@@ -29,13 +29,13 @@ chmod +x add_event.sh stop.sh build.sh tests/run_tests.sh
 Демон запускается из каталога, где лежит `events.conf`:
 
 ```sh
-./build/reminder_daemon
+./reminder_daemon
 ```
 
 Можно передать другой файл событий аргументом:
 
 ```sh
-./build/reminder_daemon /path/to/events.conf
+./reminder_daemon /path/to/events.conf
 ```
 
 Переменная `REMINDER_CONFIG` задаёт файл событий, если аргумент не указан.
@@ -50,8 +50,9 @@ chmod +x add_event.sh stop.sh build.sh tests/run_tests.sh
 ```
 
 Скрипт проверяет дату, время, флаг и текст, переводит дату и время в UNIX-время
-и дописывает строку в файл. Если демон запущен, скрипт отправляет ему `SIGHUP`,
-чтобы событие подхватилось сразу.
+и дописывает строку в файл. Запись идёт под блокировкой `events.conf.lock`,
+поэтому событие не теряется, если демон в этот момент переписывает файл. Если
+демон запущен, скрипт отправляет ему `SIGHUP`, чтобы событие подхватилось сразу.
 
 Остановка:
 
@@ -114,7 +115,7 @@ journalctl -t reminder_daemon -f
 проверки без графической сессии:
 
 ```sh
-REMINDER_TERMINAL=/path/to/terminal ./build/reminder_daemon
+REMINDER_TERMINAL=/path/to/terminal ./reminder_daemon
 ```
 
 Демон нужно запускать от обычного пользователя из графической сессии, чтобы
@@ -127,13 +128,14 @@ REMINDER_TERMINAL=/path/to/terminal ./build/reminder_daemon
 ./tests/run_tests.sh
 ```
 
-Или по шагам:
+Скрипт собирает проект во временном каталоге, запускает `ctest` и удаляет
+каталог сборки. Если нужно вручную:
 
 ```sh
-cmake -B build
-cmake --build build
-cd build
-ctest --output-on-failure
+cmake -S . -B /tmp/reminder-build
+cmake --build /tmp/reminder-build
+(cd /tmp/reminder-build && ctest --output-on-failure)
+rm -rf /tmp/reminder-build
 ```
 
 Unit-тесты проверяют разбор строк событий, расчёт повторов и чтение/запись

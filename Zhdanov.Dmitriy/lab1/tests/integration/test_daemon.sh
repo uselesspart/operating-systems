@@ -150,6 +150,32 @@ done
 process_alive "$NEW_PID" && fail "демон не завершился по SIGTERM"
 [ -e "$PIDFILE" ] && fail "PID-файл не удалён"
 
+FAIL_CONFIG="$TMP/fail-events.conf"
+printf '%s none Без терминала\n' "$(date +%s)" > "$FAIL_CONFIG"
+export REMINDER_CONFIG="$FAIL_CONFIG"
+export REMINDER_TERMINAL="$TMP/no-such-terminal"
+
+"$BIN" >/dev/null 2>&1 || fail "демон не запустился для проверки ошибки терминала"
+for _ in $(seq 1 50); do
+    [ -s "$PIDFILE" ] && break
+    sleep 0.1
+done
+if [ ! -s "$PIDFILE" ]; then
+    fail "PID-файл не создан для проверки ошибки терминала"
+else
+    FAIL_PID=$(cat "$PIDFILE")
+    sleep 1.5
+    process_alive "$FAIL_PID" || fail "демон завершился при ошибке терминала"
+    grep -qF "Без терминала" "$FAIL_CONFIG" || fail "событие удалено при ошибке терминала"
+    kill -TERM "$FAIL_PID" 2>/dev/null || fail "не удалось отправить SIGTERM после проверки терминала"
+    for _ in $(seq 1 50); do
+        process_alive "$FAIL_PID" || break
+        sleep 0.1
+    done
+    process_alive "$FAIL_PID" && fail "демон не завершился после проверки терминала"
+    [ -e "$PIDFILE" ] && fail "PID-файл не удалён после проверки терминала"
+fi
+
 if [ "$FAILED" -ne 0 ]; then
     exit 1
 fi
