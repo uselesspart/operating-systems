@@ -1,7 +1,9 @@
 #include <stdint.h>
 #include <criterion/criterion.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "pidfile.h"
@@ -57,6 +59,36 @@ Test(pidfile, alive)
     cr_assert(process_alive(1));
     cr_assert_not(process_alive(0));
     cr_assert_not(process_alive(-5));
+}
+
+Test(pidfile, zombie_is_dead)
+{
+    pid_t pid = fork();
+
+    if (pid == 0)
+        _exit(0);
+
+    usleep(100 * 1000);
+    cr_assert_not(process_alive(pid));
+    waitpid(pid, NULL, 0);
+    cr_assert_not(process_alive(pid));
+}
+
+Test(pidfile, stop_running)
+{
+    int status;
+    pid_t pid = fork();
+
+    if (pid == 0) {
+        pause();
+        _exit(0);
+    }
+
+    cr_assert_eq(pidfile_write(path, pid), 0);
+    cr_assert_eq(stop_running(path), 1);
+    cr_assert_eq(waitpid(pid, &status, 0), pid);
+    cr_assert(WIFSIGNALED(status));
+    cr_assert_eq(WTERMSIG(status), SIGTERM);
 }
 
 Test(pidfile, stop_nothing)

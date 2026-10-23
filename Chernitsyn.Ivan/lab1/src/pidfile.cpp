@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
-#include <sys/stat.h>
+#include <string.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
@@ -40,13 +40,26 @@ void pidfile_remove(const char *path)
 int process_alive(pid_t pid)
 {
     char path[64];
-    struct stat st;
+    char buf[512];
+    FILE *f;
+    size_t n;
+    char *p;
 
     if (pid <= 0)
         return 0;
 
-    snprintf(path, sizeof(path), "/proc/%ld", (long)pid);
-    return stat(path, &st) == 0;
+    snprintf(path, sizeof(path), "/proc/%ld/stat", (long)pid);
+    f = fopen(path, "r");
+    if (!f)
+        return 0;
+    n = fread(buf, 1, sizeof(buf) - 1, f);
+    fclose(f);
+    buf[n] = '\0';
+
+    p = strrchr(buf, ')');
+    if (!p || p[1] != ' ')
+        return 1;
+    return p[2] != 'Z' && p[2] != 'X';
 }
 
 int stop_running(const char *path)
