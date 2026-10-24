@@ -205,7 +205,8 @@ int fakeTerminal(int argc, char* argv[]) {
     const char* log = std::getenv("REMINDER_TEST_LOG");
     const char* failure = std::getenv("REMINDER_TEST_FAIL");
     if (!log || !failure) return 100;
-    const bool failing = fs::exists(failure);
+    const bool deferred = read(failure) == "defer";
+    const bool failing = fs::exists(failure) && !deferred;
     const int fd = open(log, O_WRONLY | O_CREAT | O_APPEND, 0600);
     if (fd == -1 || flock(fd, LOCK_EX) == -1) return 101;
     std::ostringstream line;
@@ -219,6 +220,7 @@ int fakeTerminal(int argc, char* argv[]) {
     if (failing) return 42;
     if (argc != 8 || std::string(argv[1]) != "--new-window" || std::string(argv[2]) != "--" ||
         std::string(argv[4]) != "--show" || std::string(argv[6]) != "--ack-file") return 103;
+    if (deferred) waitFor([&] { return !fs::exists(failure); }, "Deferred terminal was not released");
     const int nullFd = open("/dev/null", O_RDWR);
     if (nullFd == -1) return 104;
     for (int target : {0, 1, 2}) if (dup2(nullFd, target) == -1) return 105;
@@ -423,6 +425,32 @@ int main(int argc, char* argv[]) {
         require(Clock::now() - started < 2s, "Shutdown waited for interval");
         const auto log = read(f.folder / "daemon.log");
         require(log.find("Daemon started") != std::string::npos && log.find("Daemon stopped") != std::string::npos, "Lifecycle messages missing");
+    });
+    test("SIGTERM saves an acknowledgement already written by the display process", [] {
+        Fixture f; write(f.failure, "defer"); f.add(std::time(nullptr) - 1, "confirmed before shutdown");
+        auto pid = f.start(); waitFor([&] { return f.count() == 1; }, "Terminal not started");
+        struct Resume {
+            pid_t pid;
+            ~Resume() { if (running(pid)) kill(pid, SIGCONT); }
+        } resume{pid};
+        require(kill(pid, SIGSTOP) == 0, "SIGSTOP");
+        waitFor([&] {
+            const auto stat = read("/proc/" + std::to_string(pid) + "/stat");
+            const auto bracket = stat.rfind(')');
+            return bracket != std::string::npos && stat[bracket + 2] == 'T';
+        }, "Daemon did not pause");
+        fs::remove(f.failure);
+        waitFor([&] {
+            for (const auto& entry : fs::directory_iterator(f.folder)) {
+                if (entry.path().filename().string().rfind("events.conf.notify.", 0) == 0 && read(entry.path()) == "ready\n") return true;
+            }
+            return false;
+        }, "Display did not acknowledge");
+        require(kill(pid, SIGTERM) == 0 && kill(pid, SIGCONT) == 0, "Resume with pending SIGTERM");
+        waitFor([&] { return !running(pid); }, "Daemon did not stop");
+        require(!read(f.config.string() + ".state").empty(), "Shutdown lost ready acknowledgement");
+        pid = f.start(); std::this_thread::sleep_for(1200ms);
+        require(f.count() == 1, "Confirmed event replayed"); stop(pid);
     });
     test("busy configuration lock does not block SIGTERM", [] {
         Fixture f; const auto pid = f.start();

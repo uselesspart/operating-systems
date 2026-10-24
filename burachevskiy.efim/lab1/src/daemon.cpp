@@ -353,6 +353,7 @@ void Daemon::loop() {
         const int result = pselect(0, nullptr, nullptr, nullptr, &delay, &waitMask);
         if (result == -1 && errno != EINTR) fail("pselect");
     }
+    checkNotifications();
     reapChildren();
     syslog(LOG_INFO, "Daemon stopped by SIGTERM/SIGINT");
 }
