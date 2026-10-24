@@ -5,7 +5,7 @@
 #include "event.h"
 
 #define DEFAULT_INTERVAL 10
-#define TERMINAL_MAX 64
+#define TERMINAL_MAX 256
 
 struct config {
     unsigned interval;

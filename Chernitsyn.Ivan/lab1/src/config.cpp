@@ -54,10 +54,16 @@ static int parse_line(struct config *cfg, char *line)
     }
 
     if (starts_with_word(line, "terminal")) {
-        char name[TERMINAL_MAX];
-        if (sscanf(line + 8, "%63s", name) != 1)
+        const char *p = line + 8;
+        size_t len;
+
+        while (isspace((unsigned char)*p))
+            p++;
+        len = strcspn(p, " \t\r\n");
+        if (len == 0 || len >= sizeof(cfg->terminal))
             return -1;
-        strcpy(cfg->terminal, name);
+        memcpy(cfg->terminal, p, len);
+        cfg->terminal[len] = '\0';
         return 0;
     }
 

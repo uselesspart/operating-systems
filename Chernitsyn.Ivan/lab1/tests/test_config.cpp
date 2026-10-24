@@ -98,6 +98,21 @@ Test(config, bad_lines_skipped)
     config_free(&cfg);
 }
 
+Test(config, long_terminal_path)
+{
+    struct config cfg;
+    char buf[2 * TERMINAL_MAX];
+
+    strcpy(buf, "terminal /");
+    memset(buf + 10, 'x', TERMINAL_MAX);
+    strcpy(buf + 10 + TERMINAL_MAX, "\nterminal /usr/local/bin/my-terminal-emulator\n");
+    write_config(buf);
+
+    cr_assert_eq(config_load(path, &cfg), 0);
+    cr_assert_str_eq(cfg.terminal, "/usr/local/bin/my-terminal-emulator");
+    config_free(&cfg);
+}
+
 Test(config, many_events)
 {
     struct config cfg;
