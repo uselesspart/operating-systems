@@ -183,6 +183,7 @@ void Daemon::run_loop() {
                     Config new_config = Config::load(config_path_);
                     config_ = new_config;
                     syslog(LOG_INFO, "Configuration reloaded");
+					break;
                 } catch (const std::exception& error) {
                     syslog(
                         LOG_ERR,
