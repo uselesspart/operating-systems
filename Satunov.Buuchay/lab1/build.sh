@@ -29,6 +29,6 @@ mkdir -p "$BUILD_DIR"
     -Iinclude \
     src/config.cpp \
     src/cleaner.cpp \
+    src/daemon.cpp \
     src/main.cpp \
     -o daemon
-

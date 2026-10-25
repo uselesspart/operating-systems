@@ -1,22 +1,7 @@
-#include "cleaner.hpp"
-#include "config.hpp"
+#include "daemon.hpp"
 
-#include <chrono>
-#include <exception>
+#include <filesystem>
 #include <iostream>
-#include <thread>
-
-namespace {
-
-    constexpr int kIntervalSeconds = 20;
-
-    void process_config(const Config& config) {
-        for (const ConfigEntry& entry : config.entries()) {
-            Cleaner::clean(entry.folder, entry.depth);
-        }
-    }
-
-} // namespace
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -25,14 +10,10 @@ int main(int argc, char* argv[]) {
     }
 
     try {
-        const Config config = Config::load(argv[1]);
+        const std::filesystem::path config_path =
+            std::filesystem::absolute(argv[1]);
 
-        while (true) {
-            process_config(config);
-            std::this_thread::sleep_for(
-                std::chrono::seconds(kIntervalSeconds)
-            );
-        }
+        return Daemon::run(config_path);
     } catch (const std::exception& error) {
         std::cerr << "Error: " << error.what() << '\n';
         return 1;
