@@ -1,0 +1,9 @@
+/reminder
+/*.pid
+/*.lock
+/*.state
+/*.state.tmp.*
+/*.notify.*
+/reminder.build.*
+/tests/__pycache__/
+/tests/reminder-tests.*
