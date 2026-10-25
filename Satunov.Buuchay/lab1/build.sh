@@ -2,7 +2,8 @@
 set -euo pipefail
 
 CXX="${CXX:-g++}"
-CXXFLAGS="-std=c++20 -Wall -Wextra -Werror -pedantic"
+CXXFLAGS="-std=c++20 -Wall -Wextra -Werror -pedantic -pthread"
+
 BUILD_DIR="build"
 
 rm -rf "$BUILD_DIR"
