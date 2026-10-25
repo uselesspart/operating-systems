@@ -88,6 +88,38 @@ sleep 2
 
 assert_missing "$tree_two/level1/remove_after_reload.txt"
 
+old_pid="$pid"
+
+./daemon "$TMP_DIR/config"
+
+new_pid=""
+
+for _ in {1..30}; do
+    if [[ -s "$PID_FILE" ]]; then
+        candidate="$(cat "$PID_FILE")"
+
+        if [[ "$candidate" != "$old_pid" ]] &&
+           kill -0 "$candidate" 2>/dev/null; then
+            new_pid="$candidate"
+            break
+        fi
+    fi
+
+    sleep 0.2
+done
+
+[[ -n "$new_pid" ]] || {
+    echo "New daemon did not start" >&2
+    exit 1
+}
+
+if kill -0 "$old_pid" 2>/dev/null; then
+    echo "Previous daemon is still running" >&2
+    exit 1
+fi
+
+pid="$new_pid"
+
 kill -TERM "$pid"
 
 for _ in {1..30}; do
