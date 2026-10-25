@@ -18,6 +18,16 @@ mkdir -p "$BUILD_DIR"
 
 "$CXX" $CXXFLAGS \
     -Iinclude \
+    src/cleaner.cpp \
+    tests/unit/test_cleaner.cpp \
+    -o "$BUILD_DIR/test_cleaner"
+
+"$BUILD_DIR/test_cleaner"
+
+"$CXX" $CXXFLAGS \
+    -Iinclude \
     src/config.cpp \
+    src/cleaner.cpp \
     src/main.cpp \
     -o daemon
+
