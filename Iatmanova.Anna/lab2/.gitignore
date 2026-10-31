@@ -1,0 +1,5 @@
+.build/
+host_mq
+host_fifo
+host_sock
+*.o
