@@ -1,0 +1,8 @@
+# build.sh removes this directory on exit, it is only a safety net
+build/
+
+# the executable produced by build.sh
+lab1daemon
+
+# the config file the daemon is started with
+lab1.conf
