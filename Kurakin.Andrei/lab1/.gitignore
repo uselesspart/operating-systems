@@ -1,0 +1,5 @@
+reminder_daemon
+reminder.pid
+state/
+__pycache__/
+*.pyc
