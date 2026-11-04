@@ -1,0 +1,5 @@
+host_*
+client_*
+build
+*.log
+.git
