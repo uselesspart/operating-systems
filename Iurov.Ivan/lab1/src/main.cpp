@@ -92,7 +92,8 @@ void printUsage(std::ostream& output) {
         "Параметры:\n"
         "  --config FILE путь к конфигурации; относительные пути в ней считаются от её каталога\n"
         "  --interval N  интервал между проходами в секундах (1..86400, по умолчанию 60)\n"
-        "  --log-file F  путь к журналу; без параметра режимы once/foreground пишут в stderr\n"
+        "  --log-file F  дополнительный файл журнала; без параметра once/foreground пишут в stderr\n"
+        "                все сообщения также направляются в системный журнал syslog\n"
         "  --pid-file F  путь к PID-файлу (только для --daemon)\n"
         "  --help        показать эту справку\n\n"
         "Формат конфигурации: одна строка 'folder depth'; пустые строки и комментарии # игнорируются.\n"
@@ -252,8 +253,10 @@ int main(int argc, char* argv[]) {
         }
 
         try {
-            pidFile.writeCurrentPid();
+            // Install handlers before publishing our PID so a concurrent restart
+            // can always stop us gracefully as soon as we become visible.
             installSignalHandlers();
+            pidFile.writeCurrentPid();
             const int exitCode = runContinuous(std::move(entries), options.configPath, options.intervalSeconds, logger);
             pidFile.removeIfOwned();
             return exitCode;

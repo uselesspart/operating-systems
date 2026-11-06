@@ -6,8 +6,9 @@ namespace treecleaner {
 
 class Logger {
 public:
-    // With an empty path, writes to stderr. Otherwise opens an append-only log
-    // file and fails with std::runtime_error if it cannot be opened safely.
+    // Sends all messages to syslog; an empty path additionally writes to stderr.
+    // A non-empty path additionally appends to that file and fails if it cannot
+    // be opened safely.
     explicit Logger(const std::string& path = {});
     ~Logger();
 
