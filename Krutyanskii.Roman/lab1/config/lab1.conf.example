@@ -1,0 +1,25 @@
+# Configuration file of the lab1 daemon (variant 14).
+#
+# Format: one rule per line, "folder ignfile [seconds]".
+# The content of "folder" is cleared whenever "ignfile" is missing from that
+# folder. If the guard file is present, the folder is left untouched.
+#
+# The optional third field is the interval for this rule in seconds; without it
+# the default of 20 seconds (fixed by variant 14) is used. The daemon sleeps
+# until the nearest rule is due and runs each rule exactly every its interval.
+#
+# A folder below may be relative: it is resolved against the directory of this
+# config file, not against the working directory of the daemon (which is "/"
+# after the start). The folder must exist and must not be the root directory.
+#
+# Empty lines and lines starting with '#' are ignored. Every other line must
+# contain two or three fields.
+
+# cleared only while /tmp/lab1-scratch/dont.erase is absent
+/tmp/lab1-scratch dont.erase
+
+# cleared only while /tmp/lab1-reports/keep.txt is absent
+/tmp/lab1-reports keep.txt
+
+# the same, but checked every 5 seconds instead of every 20
+/tmp/lab1-fast dont.erase 5

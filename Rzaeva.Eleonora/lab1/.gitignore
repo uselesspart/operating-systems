@@ -1,0 +1,10 @@
+build/
+
+# Результат сборки build.sh
+/daemon
+
+*.o
+*.a
+*.so
+*.pid
+*.log
