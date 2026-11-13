@@ -15,9 +15,9 @@ constexpr const char* kPidPath = "/tmp/schedule_daemon.pid";
 constexpr const char* kIdent   = "schedule_daemon";
 constexpr time_t kGrace = 60;
 
-std::string event_key(const Event& e) { return std::to_string(e.when) + "|" + e.text; }
-}
+std::string event_key(const Event& e) { return std::to_string(e.origin) + "|" + e.text; }
 
+}
 int Daemon::run(const std::string& config) {
 
     std::error_code ec;

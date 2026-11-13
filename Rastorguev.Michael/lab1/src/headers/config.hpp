@@ -9,6 +9,7 @@ struct Event {
     time_t when;
     char repeat;
     std::string text;
+    time_t origin = 0;
 };
 
 time_t advance_time(time_t t, char repeat);

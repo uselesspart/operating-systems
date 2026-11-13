@@ -68,9 +68,12 @@ bool parse_event(std::istringstream& iss, Event& ev, std::string& err) {
         return false;
     }
 
+
+    ev.origin = when;
     ev.when   = when;
     ev.repeat = repeat;
     ev.text   = rest;
+
     return true;
 }
 
