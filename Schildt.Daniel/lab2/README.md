@@ -7,9 +7,11 @@
 
 Нужны cmake и Qt6 (пакет qt6-base-dev).
 
-    ./build.sh
+    make
 
+Или то же самое напрямую: ./build.sh
 После сборки в папке появятся host_mq, host_fifo и host_sock.
+make clean удаляет собранные файлы.
 
 ## Запуск
 
