@@ -5,6 +5,8 @@
 #include <atomic>
 #include <future>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include "Conn.h"
 #include "SharedSems.h"
@@ -41,5 +43,10 @@ private:
     QLabel*      header_;
     std::thread  thread_;
     std::atomic<bool> running_{true};
-    std::promise<int>* pending_promise_ = nullptr;
+
+    // Синхронизация gameLoop-GUI при вводе числа волка
+    std::mutex              input_mtx_;
+    std::condition_variable input_cv_;
+    int                     input_value_ = 0;
+    bool                    input_ready_ = false;
 };

@@ -55,18 +55,28 @@ void HostWindow::onRoundFinished(int round, int wolf, int kid,
 void HostWindow::onNeedWolfInput() {
     WolfInputDialog dlg(this);
     dlg.exec();
-    if (pending_promise_) {
-        pending_promise_->set_value(dlg.value());
-        pending_promise_ = nullptr;
+    {
+        std::lock_guard<std::mutex> lk(input_mtx_);
+        input_value_ = dlg.value();
+        input_ready_ = true;
     }
+    input_cv_.notify_one();
 }
 
 int HostWindow::getWolfNum() {
-    std::promise<int> promise;
-    auto future = promise.get_future();
-    pending_promise_ = &promise;
+    // Сбрасываем флаг до emit - если GUI успеет ответить раньше,
+    // wait_for сразу увидит input_ready_ = true
+    {
+        std::lock_guard<std::mutex> lk(input_mtx_);
+        input_ready_ = false;
+    }
     emit needWolfInput();
-    return future.get();
+
+    std::unique_lock<std::mutex> lk(input_mtx_);
+    // 30 секунд - safety net, диалог сам закрывается через 3 секунды
+    input_cv_.wait_for(lk, std::chrono::seconds(30),
+                       [this] { return input_ready_; });
+    return input_value_;
 }
 
 void HostWindow::gameLoop() {

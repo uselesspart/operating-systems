@@ -36,12 +36,25 @@ ConnMq::ConnMq(SharedSems* sems, bool isHost) : owner_(isHost) {
 
         mq_send_ = mq_open(name_send_.c_str(), O_CREAT | O_RDWR, 0666, &attr);
         mq_recv_ = mq_open(name_recv_.c_str(), O_CREAT | O_RDWR, 0666, &attr);
+        if (mq_send_ == (mqd_t)-1 || mq_recv_ == (mqd_t)-1) {
+            throw std::runtime_error(std::string("mq_open host: ") + std::strerror(errno));
+        }
+        // Очереди созданы - разрешаем клиенту открывать
+        sem_post(&sems->channel_ready);
     } else {
         // Клиент открывает уже созданные очереди (просто O_RDWR без O_CREAT)
         name_send_ = base + "_c2h";
         name_recv_ = base + "_h2c";
+        // Ждём, пока хост создаст очереди
+        if (!semWaitTimeout(&sems->channel_ready, 5)) {
+            throw std::runtime_error("ConnMq: timeout waiting for queues to be created");
+        }
+
         mq_send_ = mq_open(name_send_.c_str(), O_RDWR);
         mq_recv_ = mq_open(name_recv_.c_str(), O_RDWR);
+        if (mq_send_ == (mqd_t)-1 || mq_recv_ == (mqd_t)-1) {
+            throw std::runtime_error(std::string("mq_open client: ") + std::strerror(errno));
+        }
     }
 
     if (mq_send_ == (mqd_t)-1 || mq_recv_ == (mqd_t)-1) {

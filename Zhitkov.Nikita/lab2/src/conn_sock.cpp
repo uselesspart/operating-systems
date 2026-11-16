@@ -12,15 +12,22 @@ void ConnSock::preFork(SharedSems* sems) {
     }
 }
 
-ConnSock::ConnSock(int fd) : fd_(fd) {}
+ConnSock::ConnSock(int fd) : fd_(fd) {
+    // Таймауты на send/recv: если пир молчит или умер, не висим вечно
+    struct timeval tv;
+    tv.tv_sec  = 5;
+    tv.tv_usec = 0;
+    setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(fd_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+}
 
 ConnSock::~ConnSock() {
     if (fd_ >= 0) close(fd_);
 }
 
 bool ConnSock::Write(const void* buf, size_t count) {
-    // SOCK_SEQPACKET сохраняет границы сообщений: один send = один recv
-    return send(fd_, buf, count, 0) == static_cast<ssize_t>(count);
+    // MSG_NOSIGNAL - не получить SIGPIPE, если пир закрыл соединение
+    return send(fd_, buf, count, MSG_NOSIGNAL) == static_cast<ssize_t>(count);
 }
 
 bool ConnSock::Read(void* buf, size_t count) {

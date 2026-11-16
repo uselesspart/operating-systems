@@ -27,4 +27,10 @@ void testSems() {
     }
     assert(semWaitTimeout(&sems->client_msg_ready, 5));
     waitpid(pid, nullptr, 0);
+
+    // все три семафора должны быть валидны и обнулены
+    int v = -1;
+    assert(sem_getvalue(&sems->host_msg_ready,   &v) == 0 && v == 0);
+    assert(sem_getvalue(&sems->client_msg_ready, &v) == 0 && v == 0);
+    assert(sem_getvalue(&sems->channel_ready,    &v) == 0 && v == 0);
 }

@@ -13,6 +13,10 @@ struct SharedSems {
     sem_t host_msg_ready;
     sem_t client_msg_ready;
 
+    // Сигнал от хоста клиенту: канал (MQ) создан и готов к открытию
+    // Нужен, чтобы клиент не открывал очередь раньше, чем хост её создал
+    sem_t channel_ready;
+
     // Имя канала (mq/fifo), сформированное хостом в preFork()
     // Клиент читает отсюда - не нужны глобальные переменные
     char channel_name[128];
@@ -34,6 +38,7 @@ inline SharedSems* createSharedSems() {
     auto* sems = static_cast<SharedSems*>(mem);
     sem_init(&sems->host_msg_ready, 1, 0);
     sem_init(&sems->client_msg_ready, 1, 0);
+    sem_init(&sems->channel_ready, 1, 0);
     sems->channel_name[0] = '\0';
     sems->sock_fds[0] = -1;
     sems->sock_fds[1] = -1;
