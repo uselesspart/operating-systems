@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$ROOT/.build"
 
 rm -rf "$BUILD_DIR"
-rm -f "$ROOT"/host_mq "$ROOT"/host_fifo "$ROOT"/host_sock
+rm -f "$ROOT"/host_*
 
 cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
 cmake --build "$BUILD_DIR" --parallel

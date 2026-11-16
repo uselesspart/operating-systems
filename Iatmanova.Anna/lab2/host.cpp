@@ -3,7 +3,6 @@
 
 #include <QApplication>
 #include <QComboBox>
-#include <QDateTime>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -116,7 +115,10 @@ void ClientLoop(pid_t host_pid, SharedSync* sync) {
 
     std::uint64_t sequence = 1;
     const ChatPacket hello = MakePacket(MessageKind::System, sequence++, "client", "client connected");
-    conn.Write(&hello, sizeof(hello));
+    if (!conn.Write(&hello, sizeof(hello))) {
+        std::cerr << "Client failed to send connection status: " << conn.Error() << '\n';
+        _exit(2);
+    }
 
     std::cout << "Client is running in this terminal. Commands:\n"
               << "  text              - public message\n"
@@ -243,6 +245,24 @@ int RunGui(int argc, char** argv) {
     std::uint64_t sequence = 1;
     bool child_alive = true;
 
+    auto stopClient = [&](int signal_number, const QString& reason) {
+        if (!child_alive) {
+            return;
+        }
+
+        if (kill(child, signal_number) == -1 && errno != ESRCH) {
+            log->append(QString("[ERROR] failed to stop client: %1")
+                            .arg(QString::fromLocal8Bit(std::strerror(errno))));
+        }
+        waitpid(child, nullptr, 0);
+        child_alive = false;
+        status->setText(QString("%1 | IPC: %2").arg(reason).arg(CONN_TYPE_CODE));
+        log->append(QString("[STATUS] %1").arg(reason));
+        input->setEnabled(false);
+        send->setEnabled(false);
+        mode->setEnabled(false);
+    };
+
     auto sendFromHost = [&]() {
         const QString text = input->text().trimmed();
         if (text.isEmpty() || !child_alive) {
@@ -272,7 +292,11 @@ int RunGui(int argc, char** argv) {
             log->append(FormatPacket(packet));
         }
         if (conn.Failed()) {
-            status->setText(QString("Connection error: %1").arg(QString::fromStdString(conn.Error())));
+            const QString error = QString::fromStdString(conn.Error());
+            log->append(QString("[ERROR] connection failed: %1").arg(error));
+            stopClient(SIGTERM, QString("Client stopped after connection error: %1").arg(error));
+            poll_timer.stop();
+            return;
         }
 
         if (child_alive) {
@@ -297,14 +321,7 @@ int RunGui(int argc, char** argv) {
                               .count();
         if (idle >= kClientIdleTimeoutSec) {
             log->append("[STATUS] client inactive for 60 seconds -> SIGKILL");
-            if (kill(child, SIGKILL) == 0) {
-                child_alive = false;
-                waitpid(child, nullptr, 0);
-                status->setText(QString("Client killed due to inactivity | IPC: %1").arg(CONN_TYPE_CODE));
-            } else {
-                log->append(QString("[ERROR] SIGKILL failed: %1")
-                                .arg(QString::fromLocal8Bit(std::strerror(errno))));
-            }
+            stopClient(SIGKILL, "Client killed due to inactivity");
         }
     });
     idle_timer.start(1000);

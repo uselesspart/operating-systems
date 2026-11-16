@@ -7,11 +7,29 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-file(GLOB CONN_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/conn_*.cpp")
+# All .cpp files from the project root are discovered automatically.
+file(GLOB ALL_CPP_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+)
+file(GLOB CONN_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/conn_*.cpp"
+)
 
 if(NOT CONN_SOURCES)
     message(FATAL_ERROR "No conn_*.cpp files found")
 endif()
+
+set(HOST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/host.cpp")
+if(NOT EXISTS "${HOST_SOURCE}")
+    message(FATAL_ERROR "host.cpp is required")
+endif()
+
+# Ordinary implementation files (common.cpp and any future ordinary .cpp)
+# are picked up automatically. host.cpp is the designated main file and
+# conn_*.cpp files are handled separately below.
+set(REGULAR_SOURCES ${ALL_CPP_SOURCES})
+list(REMOVE_ITEM REGULAR_SOURCES "${HOST_SOURCE}")
+list(FILTER REGULAR_SOURCES EXCLUDE REGEX "/conn_[^/]+\\.cpp$")
 
 foreach(CONN_SOURCE IN LISTS CONN_SOURCES)
     get_filename_component(CONN_NAME "${CONN_SOURCE}" NAME_WE)
@@ -23,8 +41,8 @@ foreach(CONN_SOURCE IN LISTS CONN_SOURCES)
     endif()
 
     add_executable(host_${TYPE_CODE}
-        host.cpp
-        common.cpp
+        ${HOST_SOURCE}
+        ${REGULAR_SOURCES}
         ${CONN_SOURCE}
     )
 

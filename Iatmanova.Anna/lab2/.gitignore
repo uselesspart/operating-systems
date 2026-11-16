@@ -1,5 +1,5 @@
 .build/
-host_mq
-host_fifo
-host_sock
+.autocompile_test_build/
+host_*
 *.o
+.conn_probe_test_build/
