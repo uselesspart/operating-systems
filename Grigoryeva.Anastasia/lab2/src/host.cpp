@@ -162,7 +162,7 @@ public:
                                                             << QStringLiteral("Состояние")
                                                             << QStringLiteral("Последнее число"));
         kidsTable_->horizontalHeader()->setStretchLastSection(true);
-        kidsTable_->setEditTriggers(QAbstractItemView::NoEditTrigger);
+        kidsTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
         kidsTable_->setMaximumHeight(180);
         layout->addWidget(kidsTable_);
 

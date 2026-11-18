@@ -2,10 +2,10 @@
 .PHONY: all nogui test clean
 
 all:
-	./build.sh
+	bash ./build.sh
 
 nogui:
-	./build.sh --no-gui
+	bash ./build.sh --no-gui
 
 test:
 	bash tests/run_tests.sh

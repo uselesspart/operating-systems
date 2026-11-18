@@ -9,9 +9,11 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <random>
 #include <string>
@@ -36,8 +38,9 @@ void PrintUsage(const char* prog) {
 
 bool ParseLong(const std::string& s, long& out) {
     char* end = nullptr;
+    errno = 0;
     long v = std::strtol(s.c_str(), &end, 10);
-    if (s.empty() || *end != '\0') return false;
+    if (end == s.c_str() || *end != '\0' || errno == ERANGE) return false;
     out = v;
     return true;
 }
@@ -59,7 +62,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     long hostPidL = 0;
-    if (!ParseLong(argv[1], hostPidL) || hostPidL <= 1) {
+    if (!ParseLong(argv[1], hostPidL) || hostPidL <= 1 || hostPidL > std::numeric_limits<pid_t>::max()) {
         std::cerr << "Неверный pid хоста: " << argv[1] << "\n";
         PrintUsage(argv[0]);
         return 1;
@@ -76,7 +79,8 @@ int main(int argc, char* argv[]) {
             size_t comma = v.find(',');
             long x = 0, y = 0;
             if (comma == std::string::npos || !ParseLong(v.substr(0, comma), x) || !ParseLong(v.substr(comma + 1), y) ||
-                !rules::IsValidKidNumber(true, static_cast<int>(x)) || !rules::IsValidKidNumber(false, static_cast<int>(y))) {
+                x < rules::kMinNumber || x > rules::kMaxAliveKidNumber ||
+                y < rules::kMinNumber || y > rules::kMaxDeadKidNumber) {
                 std::cerr << "--numbers: нужен формат ЖИВОЙ(1..100),МЕРТВЫЙ(1..50)\n";
                 return 1;
             }

@@ -9,7 +9,7 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
 echo "== Сборка (без GUI)"
-./build.sh --no-gui --out "$OUT" > /dev/null
+bash ./build.sh --no-gui --out "$OUT" > /dev/null
 echo "Сборка выполнена"
 
 echo

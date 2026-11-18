@@ -22,7 +22,7 @@ public:
     SemChannel(const SemChannel&) = delete;
     SemChannel& operator=(const SemChannel&) = delete;
 
-    void PostOutgoing();                                  // "в моём направлении появились данные"
+    bool PostOutgoing(std::string& err);                                  // "в моём направлении появились данные"
     bool WaitIncoming(int timeoutMs, std::string& err);   // ждать данные от собеседника (с тайм-аутом)
 
 private:

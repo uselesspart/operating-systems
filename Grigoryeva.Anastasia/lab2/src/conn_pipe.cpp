@@ -65,9 +65,9 @@ struct Conn::Impl {
         if (create) {
             EnsureFdLimit(base + kFdsPerKid + 16);
             int a[2], b[2];
-            if (pipe(a) != 0) throw std::runtime_error(std::string("pipe(): ") + std::strerror(errno));
+            if (pipe2(a, O_NONBLOCK | O_CLOEXEC) != 0) throw std::runtime_error(std::string("pipe(): ") + std::strerror(errno));
             UniqueFd a0(a[0]), a1(a[1]);
-            if (pipe(b) != 0) throw std::runtime_error(std::string("pipe(): ") + std::strerror(errno));
+            if (pipe2(b, O_NONBLOCK | O_CLOEXEC) != 0) throw std::runtime_error(std::string("pipe(): ") + std::strerror(errno));
             UniqueFd b0(b[0]), b1(b[1]);
             PlaceAt(fds[kReadA], a0, base + kReadA);
             PlaceAt(fds[kWriteA], a1, base + kWriteA);
@@ -76,9 +76,9 @@ struct Conn::Impl {
         } else {
             const std::string pathR = ProcFd(id.hostPid, base + kReadA);
             const std::string pathW = ProcFd(id.hostPid, base + kWriteB);
-            fds[kReadA].reset(open(pathR.c_str(), O_RDONLY | O_CLOEXEC));
+            fds[kReadA].reset(open(pathR.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC));
             if (!fds[kReadA].valid()) throw std::runtime_error("open " + pathR + ": " + std::strerror(errno));
-            fds[kWriteB].reset(open(pathW.c_str(), O_WRONLY | O_CLOEXEC));
+            fds[kWriteB].reset(open(pathW.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC));
             if (!fds[kWriteB].valid()) throw std::runtime_error("open " + pathW + ": " + std::strerror(errno));
         }
     }
@@ -98,6 +98,5 @@ bool Conn::Read(void* buf, size_t count) {
 bool Conn::Write(const void* buf, size_t count) {
     Impl& d = *impl_;
     if (!WriteFdAll(d.fds[d.host ? kWriteA : kWriteB].get(), buf, count, IoTimeoutMs(), false, d.err)) return false;
-    d.sem.PostOutgoing();
-    return true;
+    return d.sem.PostOutgoing(d.err);
 }

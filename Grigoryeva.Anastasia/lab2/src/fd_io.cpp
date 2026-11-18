@@ -26,13 +26,14 @@ int IoTimeoutMs() {
     int v = g_timeoutMs.load();
     if (v > 0) return v;
     const char* env = std::getenv("WOLF_IO_TIMEOUT_MS");
-    int parsed = env ? std::atoi(env) : 0;
-    v = parsed > 0 ? parsed : 5000;
+    char* end = nullptr;
+    const long parsed = env ? std::strtol(env, &end, 10) : 0;
+    v = parsed > 0 && parsed <= 5000 && *end == '\0' ? static_cast<int>(parsed) : 5000;
     g_timeoutMs.store(v);
     return v;
 }
 
-void SetIoTimeoutMs(int ms) { g_timeoutMs.store(ms > 0 ? ms : 5000); }
+void SetIoTimeoutMs(int ms) { g_timeoutMs.store(ms > 0 && ms <= 5000 ? ms : 5000); }
 
 void UniqueFd::reset(int fd) {
     if (fd_ >= 0) ::close(fd_);

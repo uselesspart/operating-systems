@@ -33,7 +33,7 @@ struct Conn::Impl {
             std::strcpy(addr.sun_path, path.c_str());
 
             if (create) {
-                listenFd.reset(socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0));
+                listenFd.reset(socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0));
                 if (!listenFd.valid()) throw std::runtime_error(std::string("socket: ") + std::strerror(errno));
                 unlink(path.c_str());
                 if (bind(listenFd.get(), reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
@@ -44,7 +44,7 @@ struct Conn::Impl {
                     throw std::runtime_error(std::string("listen: ") + std::strerror(errno));
                 }
             } else {
-                dataFd.reset(socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0));
+                dataFd.reset(socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0));
                 if (!dataFd.valid()) throw std::runtime_error(std::string("socket: ") + std::strerror(errno));
                 if (connect(dataFd.get(), reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
                     throw std::runtime_error("connect " + path + ": " + std::strerror(errno));
@@ -71,7 +71,7 @@ struct Conn::Impl {
             err = r == 0 ? "таймаут ожидания подключения клиента" : std::string("poll: ") + std::strerror(errno);
             return false;
         }
-        int fd = accept4(listenFd.get(), nullptr, nullptr, SOCK_CLOEXEC);
+        int fd = accept4(listenFd.get(), nullptr, nullptr, SOCK_NONBLOCK | SOCK_CLOEXEC);
         if (fd < 0) {
             err = std::string("accept: ") + std::strerror(errno);
             return false;
@@ -99,6 +99,5 @@ bool Conn::Write(const void* buf, size_t count) {
     Impl& d = *impl_;
     if (!d.EnsureConnected()) return false;
     if (!WriteFdAll(d.dataFd.get(), buf, count, IoTimeoutMs(), true, d.err)) return false;
-    d.sem.PostOutgoing();
-    return true;
+    return d.sem.PostOutgoing(d.err);
 }

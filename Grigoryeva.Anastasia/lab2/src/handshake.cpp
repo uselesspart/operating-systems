@@ -64,8 +64,8 @@ int ClientHandshake(pid_t hostPid, int timeoutMs, std::string& err) {
             return -1;
         }
         const int sliceEnd = std::min(timeoutMs, elapsedMs() + kResendMs);
-        while (elapsedMs() < sliceEnd) {
-            struct timespec ts = ToTimespec(sliceEnd - elapsedMs());
+        for (int remaining = sliceEnd - elapsedMs(); remaining > 0; remaining = sliceEnd - elapsedMs()) {
+            struct timespec ts = ToTimespec(remaining);
             siginfo_t info;
             if (sigtimedwait(&s, &info, &ts) < 0) continue;  // EAGAIN (тайм-аут среза) / EINTR
             if (info.si_pid != hostPid || info.si_code != SI_QUEUE) continue;  // чужой или наш же сигнал

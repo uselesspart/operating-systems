@@ -141,7 +141,8 @@ T0=$SECONDS
 "$BIN/client_pipe" "$DEAF" > "$TMP/deaf.c" 2>&1; CRC=$?
 DT=$((SECONDS - T0))
 check "клиент завершился с кодом 1" [ "$CRC" = 1 ]
-check "ожидание заняло около 5 секунд (было ${DT} с)" [ "$DT" -ge 4 ] && [ "$DT" -le 7 ]
+in_handshake_range() { [ "$1" -ge 4 ] && [ "$1" -le 7 ]; }
+check "ожидание заняло около 5 секунд (было ${DT} с)" in_handshake_range "$DT"
 check "сообщение о тайм-ауте знакомства" has "$TMP/deaf.c" "тайм-аут знакомства"
 
 echo "  9) несуществующий хост и неверные аргументы"

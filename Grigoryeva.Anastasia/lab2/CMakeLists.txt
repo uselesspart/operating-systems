@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(wolf_lab2 CXX)
+project(wolf_lab2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,12 +29,17 @@ else()
 endif()
 
 # ---- Источники ---------------------------------------------------------------------------
-# Любой новый *.cpp в src/ подхватывается автоматически (CMakeLists менять не нужно):
-#   conn_<тип>.cpp  -> порождает пару исполняемых файлов host_<тип> и client_<тип>;
+# Любой новый исходный файл C или C++ в src/ подхватывается автоматически (CMakeLists менять не нужно):
+#   conn_<тип>.*  -> порождает пару исполняемых файлов host_<тип> и client_<тип>;
 #   host.cpp / client.cpp - функции main хоста и клиента;
 #   остальные файлы - общий код, линкуется в каждый исполняемый файл.
-file(GLOB ALL_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
-file(GLOB CONN_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/conn_*.cpp")
+file(GLOB ALL_SOURCES CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc"
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cxx")
+set(CONN_SOURCES ${ALL_SOURCES})
+list(FILTER CONN_SOURCES INCLUDE REGEX "/conn_[^/]+$")
 set(COMMON_SOURCES ${ALL_SOURCES})
 list(REMOVE_ITEM COMMON_SOURCES
      "${CMAKE_SOURCE_DIR}/src/host.cpp"
@@ -56,7 +61,7 @@ foreach(conn_src IN LISTS CONN_SOURCES)
 
   if(BUILD_TESTS)
     add_executable(unit_conn_${TYPE_CODE} "${CMAKE_SOURCE_DIR}/tests/unit_conn.cpp"
-                   "${CMAKE_SOURCE_DIR}/src/sync_sem.cpp" "${CMAKE_SOURCE_DIR}/src/fd_io.cpp" "${conn_src}")
+                   ${COMMON_SOURCES} "${conn_src}")
     target_link_libraries(unit_conn_${TYPE_CODE} PRIVATE ${SYSTEM_LIBS})
   endif()
 endforeach()

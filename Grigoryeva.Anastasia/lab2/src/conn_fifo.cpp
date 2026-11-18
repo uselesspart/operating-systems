@@ -73,6 +73,5 @@ bool Conn::Read(void* buf, size_t count) {
 bool Conn::Write(const void* buf, size_t count) {
     Impl& d = *impl_;
     if (!WriteFdAll(d.wr.get(), buf, count, IoTimeoutMs(), false, d.err)) return false;
-    d.sem.PostOutgoing();
-    return true;
+    return d.sem.PostOutgoing(d.err);
 }

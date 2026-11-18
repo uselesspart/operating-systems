@@ -114,7 +114,7 @@ void GameHost::AcceptLoop() {
 }
 
 void GameHost::HandleJoinRequest(pid_t pid) {
-    if (finished_) {  // игра уже окончена - новых козлят не принимаем
+    if (finished_ || stopping_) {  // новых козлят не принимаем
         HostReply(pid, -1);
         return;
     }
@@ -142,14 +142,31 @@ void GameHost::HandleJoinRequest(pid_t pid) {
         HostReply(pid, -1);
         return;
     }
-    Kid* raw = kid.get();
-    const int id = raw->id;
-    {
+    const int id = kid->id;
+    try {
         std::lock_guard<std::mutex> l(kidsMutex_);
+        // Пока создавались ресурсы, игра могла завершиться.
+        if (finished_ || stopping_) {
+            HostReply(pid, -1);
+            return;
+        }
         kids_.push_back(std::move(kid));
+        Kid* raw = kids_.back().get();
+        try {
+            raw->thread = std::thread(&GameHost::WorkerMain, this, raw);
+        } catch (...) {
+            kids_.pop_back();
+            throw;
+        }
+    } catch (const std::exception& e) {
+        view_.OnLog("Не удалось запустить поток для pid " + std::to_string(pid) + ": " + e.what());
+        HostReply(pid, -1);
+        return;
     }
-    raw->thread = std::thread(&GameHost::WorkerMain, this, raw);
-    HostReply(pid, id);
+    if (!HostReply(pid, id)) {
+        view_.OnLog("Не удалось отправить ответ знакомства для pid " + std::to_string(pid));
+        return;
+    }
     view_.OnLog("Козленок #" + std::to_string(id) + " (pid " + std::to_string(pid) +
                 "): знакомство выполнено, ожидаю подключение");
 }
@@ -405,11 +422,11 @@ void GameHost::GameLoop() {
 void GameHost::FinishGame(const std::string& reason) {
     {
         std::lock_guard<std::mutex> l(kidsMutex_);
+        finished_ = true;
         for (auto& k : kids_) {
             { std::lock_guard<std::mutex> kl(k->m); k->stop = true; }
             k->cv.notify_all();
         }
     }
-    finished_ = true;
     view_.OnGameOver(reason);
 }

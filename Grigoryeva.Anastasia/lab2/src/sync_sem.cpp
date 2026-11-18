@@ -57,7 +57,11 @@ SemChannel::~SemChannel() {
     }
 }
 
-void SemChannel::PostOutgoing() { sem_post(out_); }
+bool SemChannel::PostOutgoing(std::string& err) {
+    if (sem_post(out_) == 0) return true;
+    err = std::string("sem_post: ") + std::strerror(errno);
+    return false;
+}
 
 bool SemChannel::WaitIncoming(int timeoutMs, std::string& err) {
     struct timespec ts;
