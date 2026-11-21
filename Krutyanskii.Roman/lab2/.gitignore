@@ -1,0 +1,5 @@
+# CMake / make build tree (build.sh creates and cleans this)
+build/
+
+# Test binary compiled from tests/unit_tests.cpp
+tests/unit_tests_bin
