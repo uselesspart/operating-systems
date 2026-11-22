@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -u
+base=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || exit 1
+if [[ ! -x "$base/reminder" ]]; then
+    printf 'Сначала выполните ./build.sh\n' >&2
+    exit 1
+fi
+exec "$base/reminder" --add "${REMINDER_CONFIG:-$base/events.conf}" "$@"

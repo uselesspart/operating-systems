@@ -1,0 +1,4 @@
+/host_*
+/build/
+/*.log
+/__pycache__/
