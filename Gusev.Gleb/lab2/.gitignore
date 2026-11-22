@@ -1,0 +1,5 @@
+host_*
+test-logs/
+build/
+cmake-build-*/
+.idea/

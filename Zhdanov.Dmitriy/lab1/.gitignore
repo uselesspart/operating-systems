@@ -1,0 +1,6 @@
+build/
+out/
+*.log
+*.pid
+reminder_daemon
+*.lock

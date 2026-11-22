@@ -1,0 +1,5 @@
+.build/
+.autocompile_test_build/
+host_*
+*.o
+.conn_probe_test_build/

@@ -1,0 +1,8 @@
+# Each watch_dir is a root directory. Monitoring below it is recursive.
+# Relative paths are resolved relative to this configuration file.
+watch_dir=/home/example/Documents
+watch_dir=../shared-folder
+
+# Exclude the active log sink and its rotations to prevent feedback loops.
+# The path may be absolute or relative to this configuration file.
+exclude_path=/var/log/disk_monitor.log
