@@ -1,0 +1,45 @@
+name: Nazarova-Anastasiia-[5030102/30202]-lab2-20
+
+on:
+  push:
+    paths:
+      - 'Nazarova.Anastasiia/lab2/**'
+      - '.github/workflows/nazarova-lab2.yml'
+  pull_request:
+    paths:
+      - 'Nazarova.Anastasiia/lab2/**'
+      - '.github/workflows/nazarova-lab2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: Nazarova.Anastasiia/lab2
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: Установка зависимостей
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake qt6-base-dev python3
+      - name: Сборка и тесты
+        run: |
+          set -o pipefail
+          make test 2>&1 | tee "$RUNNER_TEMP/lab2-tests.txt"
+          test -x host_pipe && test -x client_pipe
+          test -x host_fifo && test -x client_fifo
+          test -x host_sock && test -x client_sock
+          test -z "$(find . -maxdepth 1 -type d -name '.build.*' -print)"
+      - name: Сохранение результата
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nazarova-lab2-linux-results
+          path: ${{ runner.temp }}/lab2-tests.txt
+          retention-days: 14

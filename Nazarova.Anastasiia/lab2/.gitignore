@@ -1,0 +1,7 @@
+.build.*/
+host_*
+client_*
+!*.cpp
+!*.hpp
+!*.c
+__pycache__/
