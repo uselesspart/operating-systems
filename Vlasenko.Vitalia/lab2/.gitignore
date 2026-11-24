@@ -1,0 +1,40 @@
+# Build artifacts
+/bin/
+/build/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+
+# Compiled files
+*.o
+*.a
+*.so
+*.out
+
+# IDE files
+.vscode/
+.idea/
+.vs/
+CMakeUserPresets.json
+
+# Runtime files
+*.log
+*.sock
+*.fifo
+core
+core.*
+
+# Python
+__pycache__/
+*.pyc
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Windows download metadata
+*:Zone.Identifier
