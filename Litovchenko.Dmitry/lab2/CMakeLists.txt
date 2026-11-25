@@ -1,0 +1,36 @@
+cmake_minimum_required(VERSION 3.16)
+project(wolf_and_goats CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
+add_compile_options(-Wall -Wextra -Werror)
+
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(Threads REQUIRED)
+
+file(GLOB SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
+file(GLOB CONN_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/conn_*.cpp)
+set(HOST_SOURCE ${CMAKE_SOURCE_DIR}/src/host.cpp)
+list(REMOVE_ITEM SOURCES ${CONN_SOURCES} ${HOST_SOURCE})
+
+add_library(common STATIC ${SOURCES})
+target_include_directories(common PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(common PUBLIC Qt${QT_VERSION_MAJOR}::Widgets Threads::Threads rt)
+
+foreach(conn ${CONN_SOURCES})
+    get_filename_component(name ${conn} NAME_WE)
+    string(REPLACE "conn_" "" code ${name})
+    add_executable(host_${code} ${HOST_SOURCE} ${conn})
+    target_link_libraries(host_${code} PRIVATE common)
+endforeach()
+
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/tests/test_*.cpp)
+foreach(test ${TEST_SOURCES})
+    get_filename_component(name ${test} NAME_WE)
+    add_executable(${name} ${test})
+    target_link_libraries(${name} PRIVATE common)
+    set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/tests)
+endforeach()
